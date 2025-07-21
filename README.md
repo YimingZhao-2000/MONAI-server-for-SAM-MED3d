@@ -3,10 +3,25 @@
 This project provides a MONAI Label server integration for [SAM-Med3D](https://github.com/uni-medical/SAM-Med3D), enabling interactive 3D medical image segmentation with clients such as 3D Slicer.
 
 ## Main Contents
+- `main.py`: MONAI Label App entrypoint, required by MONAI Label, returns the app instance
 - `config.py`: MONAI Label App configuration, integrating SAM-Med3D inference logic
 - `infer_utils.py`: Inference and post-processing utilities, supporting user click input
 - `requirements.txt`: Dependency list
 - `start_server.sh`: One-click script to start the MONAI Label server
+
+## App Entrypoint
+
+MONAI Label requires an `main.py` file in the app folder, with an `app()` function returning a `MONAILabelApp` instance. This is already provided:
+
+```python
+from config import SAMMed3DApp
+import os
+
+def app():
+    studies = os.environ.get("MONAI_LABEL_DATASTORE", "./data")
+    app_dir = os.path.dirname(__file__)
+    return SAMMed3DApp(app_dir=app_dir, studies=studies)
+```
 
 ## Quick Start
 
