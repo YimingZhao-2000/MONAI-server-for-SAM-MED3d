@@ -1,6 +1,6 @@
 # MONAI-server-for-SAM-MED3d
 
-This project provides a MONAI Label server integration for [SAM-Med3D](https://github.com/bowang-lab/SAM-Med3D), enabling interactive 3D medical image segmentation with clients such as 3D Slicer.
+This project provides a MONAI Label server integration for [SAM-Med3D]([https://github.com/bowang-lab/SAM-Med3D](https://github.com/uni-medical/SAM-Med3D)), enabling interactive 3D medical image segmentation with clients such as 3D Slicer.
 
 ## Main Contents
 - `config.py`: MONAI Label App configuration, integrating SAM-Med3D inference logic
