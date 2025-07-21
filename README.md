@@ -38,4 +38,4 @@ This project provides a MONAI Label server integration for [SAM-Med3D](https://g
 - The code follows the Occam's razor principle, maximizing reuse of the original SAM-Med3D inference logic.
 
 ---
-Feel free to open issues or pull requests if you have any questions! 
+Feel free to open issues or pull requests if you have any questions!
