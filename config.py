@@ -16,11 +16,8 @@ from utils.infer_utils import (
 class SAMMed3DInfer(BasicInferTask):
     def __init__(self, path, network=None, type="segmentation",
                  labels=["organ"], dimension=3, description="SAM-Med3D 3D Seg"):
-        super().__init__(path=path,
-                         network=network,
-                         type=type,
-                         labels=labels,
-                         dimension=dimension,
+        super().__init__(path=path, network=network, type=type,
+                         labels=labels, dimension=dimension,
                          description=description)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         import medim
@@ -29,32 +26,27 @@ class SAMMed3DInfer(BasicInferTask):
         self.meta_info = None
 
     def pre_transforms(self, data=None):
-        # 可在此添加标准化、裁剪等MONAI transforms
+        # 保留，但不重复执行 preprocess 操作
         return Compose([])
 
-    def preprocess(self, request):
-        # 直接使用现有的预处理逻辑
-        image_path = request.get("image_path")
-        if image_path:
-            subject, meta_info = get_subject_and_meta_info(image_path, None)
-            roi_image, _, meta_info = data_preprocess(
+    def inferer(self):
+        def _infer_fn(d):
+            # 1️⃣ 数据预处理嵌入模型运行之前
+            subject, meta_info = get_subject_and_meta_info(d["image_path"], None)
+            img, _, meta = data_preprocess(
                 subject, meta_info,
                 category_index=1,
-                target_spacing=(1.5, 1.5, 1.5),
+                target_spacing=(1.5,1.5,1.5),
                 crop_size=128
             )
-            self.meta_info = meta_info
-            return {"image": roi_image}
-        return request
+            self.meta_info = meta
 
-    def inferer(self, data=None):
-        def _infer_fn(d):
-            img = d["image"][None].to(self.device)
+            img = img.to(self.device)
             pts = d.get("points", None)
             lbs = d.get("labels", None)
             num_clicks = d.get("num_clicks", 1)
-            user_points = torch.tensor([pts], dtype=torch.float, device=self.device) if pts else None
-            user_labels = torch.tensor([lbs], dtype=torch.int64, device=self.device) if lbs else None
+            user_points = torch.tensor([pts], device=self.device).float() if pts else None
+            user_labels = torch.tensor([lbs], device=self.device).long() if lbs else None
 
             with torch.no_grad():
                 mask, _ = sam_model_infer_with_user_prompt(
@@ -65,27 +57,20 @@ class SAMMed3DInfer(BasicInferTask):
                     user_points=user_points,
                     user_labels=user_labels
                 )
-            d["pred"] = mask
+            d["pred"] = mask.cpu().numpy()
             return d
         return _infer_fn
 
     def post_transforms(self, data=None):
-        # 可在此添加MONAI后处理transforms
         return Compose([])
 
-    def postprocess(self, mask):
-        # 还原mask到原始空间
-        if self.meta_info:
-            final_mask = data_postprocess(mask, self.meta_info)
-            return final_mask.astype(np.uint8)
-        return mask
-
-    def writer(self, data=None, extension=".nii.gz", dtype=None):
+    def writer(self, data, extension=".nii.gz", dtype=None):
         mask = data["pred"]
-        meta = self.meta_info
-        if meta:
-            mask = data_postprocess(mask, meta).astype(np.uint8)
+        # 2️⃣ 使用预处理保存的 meta_info 来复原空间
+        if self.meta_info:
+            mask = data_postprocess(mask, self.meta_info).astype(np.uint8)
         return mask, {}
+
 
 class SAMMed3DApp(MONAILabelApp):
     def __init__(self, app_dir, studies, **kwargs):
