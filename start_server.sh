@@ -23,7 +23,6 @@ echo "Model type: $MODEL_TYPE"
 echo "Checkpoint path: $CHECKPOINT_PATH"
 
 monailabel start_server \
-    --app . \
-    --studies "$DATA_PATH" \
-    --port "$PORT" \
-    --host 0.0.0.0 
+  --app . \
+  --studies /path/to/data \
+  --conf models deepedit
