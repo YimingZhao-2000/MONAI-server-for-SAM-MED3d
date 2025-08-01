@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MONAI-server-for-SAM-MED3D • Engineering Spec (EN/中文)</title>
+<style>
+:root{
+  --bg:#0b0f14;
+  --bg-elev:#121823;
+  --panel:#0f1520;
+  --text:#e6eef7;
+  --muted:#9fb3c8;
+  --accent:#4cc9f0;
+  --accent-2:#94d2bd;
+  --border:#1f2a3a;
+  --code-bg:#0d1117;
+  --code-border:#223047;
+  --link:#8bdcff;
+  --ok:#5ce1a7;
+  --warn:#ffd166;
+  --err:#ff6b6b;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:linear-gradient(180deg,var(--bg),#0d131d 40%, var(--panel));
+  color:var(--text);
+  font:15px/1.6 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", "PingFang SC","Hiragino Sans GB","Microsoft YaHei UI","Microsoft YaHei",sans-serif;
+}
+a{color:var(--link);text-decoration:none} a:hover{text-decoration:underline}
+kbd, code{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace}
+pre{
+  background:var(--code-bg);
+  border:1px solid var(--code-border);
+  padding:12px;
+  border-radius:10px;
+  overflow:auto;
+}
+code{background:rgba(255,255,255,0.03); padding:2px 4px; border-radius:6px}
+/* Layout */
+.app{
+  display:grid;
+  grid-template-columns: 280px 1fr;
+  gap:0;
+  min-height:100vh;
+}
+.sidebar{
+  position:sticky; top:0; height:100vh; overflow:auto;
+  background:linear-gradient(180deg,var(--bg-elev), #0e1522);
+  border-right:1px solid var(--border);
+  padding:18px 16px 18px 16px;
+}
+.brand{display:flex; align-items:center; gap:10px; margin-bottom:12px}
+.brand .logo{
+  width:30px;height:30px;border-radius:8px;background: radial-gradient(circle at 30% 30%, var(--accent), transparent 60%), 
+  radial-gradient(circle at 70% 70%, var(--accent-2), transparent 60%), #162033;border:1px solid var(--border);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.02) inset;
+}
+.brand h1{font-size:16px; margin:0}
+.controls{display:flex; flex-direction:column; gap:8px; margin:10px 0 14px}
+.controls .row{display:flex; gap:8px}
+button, .btn{
+  background:#101828; border:1px solid var(--border); color:var(--text);
+  border-radius:10px; padding:8px 10px; cursor:pointer; font-weight:600;
+}
+button:hover,.btn:hover{border-color:#2b3b55}
+#search{width:100%; padding:8px 10px; border-radius:10px; border:1px solid var(--border); background:#0e1623; color:var(--text)}
+.small{font-size:12px;color:var(--muted)}
+.toc{margin-top:8px}
+.toc a{display:block; padding:6px 8px; border-radius:8px; color:var(--muted)}
+.toc a.active{color:var(--text); background:#0f1a2b}
+.toc .toc-l2{padding-left:14px}
+.toc .toc-l3{padding-left:22px}
+.main{
+  padding:22px 24px 80px;
+}
+.header{
+  display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:10px
+}
+.header .meta{color:var(--muted)}
+section{
+  padding:10px 0 8px; border-bottom:1px dashed var(--border);
+}
+section:last-child{border-bottom:none}
+h2{margin:10px 0 6px; font-size:20px}
+h3{margin:8px 0 4px; font-size:16px}
+.badge{display:inline-block; font-size:12px; padding:2px 8px; border:1px solid var(--border); border-radius:999px; color:var(--muted); margin-left:6px}
+.tag{display:inline-block; font-size:11px; padding:1px 6px; border-radius:6px; background:#102238; color:#b9d8ff; border:1px solid #1c3352; margin-right:4px}
+.card{
+  background: linear-gradient(180deg, #0c1220, #0a101a);
+  border:1px solid var(--border); border-radius:14px; padding:12px; margin:8px 0
+}
+.grid{display:grid; gap:12px}
+.grid.cols-2{grid-template-columns: repeat(2, minmax(0,1fr))}
+.grid.cols-3{grid-template-columns: repeat(3, minmax(0,1fr))}
+@media (max-width: 1000px){ .app{grid-template-columns: 1fr}; .grid.cols-2, .grid.cols-3{grid-template-columns: 1fr} .sidebar{position:static; height:auto} }
+
+/* Language toggle */
+.lang-zh .en{display:none}
+.lang-en .zh{display:none}
+.lang-both .en,.lang-both .zh{display:block}
+.lang-ind{margin-left:6px; padding:1px 6px; border-radius:6px; border:1px solid var(--border); color:var(--muted); font-size:12px}
+
+/* Utility */
+.hidden{display:none !important}
+.hl{background:rgba(76,201,240,0.12); border:1px dashed rgba(76,201,240,0.25); border-radius:6px; padding:2px 4px}
+.copy-btn{
+  position:absolute; top:8px; right:8px; font-size:12px; padding:4px 6px; border-radius:8px; border:1px solid var(--border); background:#0e1623; color:var(--muted);
+}
+.codewrap{position:relative}
+/* Back to top */
+#toTop{
+  position:fixed; right:18px; bottom:18px; opacity:0.9; display:none; z-index:10
+}
+/* Search highlights */
+mark{background:rgba(255, 230, 92, 0.35); padding:0 2px; border-radius:3px}
+</style>
+</head>
+<body>
+<div class="app lang-zh" id="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <h1>MONAI-server-for-SAM-MED3D</h1>
+    </div>
+    <div class="controls">
+      <input id="search" placeholder="搜索 / Search…" aria-label="Search content" />
+      <div class="row">
+        <button id="toggleLang">中文</button>
+        <button id="toggleTheme">Dark</button>
+      </div>
+      <div class="small">快速跳转 / Quick Jump</div>
+    </div>
+    <nav class="toc" id="toc">
+      <!-- TOC populated by JS -->
+    </nav>
+    <div class="small" style="margin-top:10px">v0.3 • 2025‑08‑01</div>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <div>
+        <div class="en"><strong>Engineering Specification</strong><span class="badge">EN</span></div>
+        <div class="zh"><strong>工程规格说明</strong><span class="badge">中文</span></div>
+      </div>
+      <div class="meta">MedSAM2 × MONAI Label • 3D Segmentation • TCP Monitor</div>
+    </div>
+
+    <!-- Overview -->
+    <section id="overview" data-title="Overview / 摘要">
+      <h2>Overview / 摘要</h2>
+      <div class="card">
+        <p class="en">This project integrates <span class="hl">MedSAM2</span> into a <span class="hl">MONAI Label</span> server to enable interactive 3D medical image segmentation with clients such as 3D Slicer. It provides a custom sample-selection strategy, a TCP-based logger for front-end monitoring, and a prompt-aware inference pipeline (multi-point 3D prompts, forward/backward propagation, intersection, and postprocessing).</p>
+        <p class="zh">本项目将 <span class="hl">MedSAM2</span> 集成到 <span class="hl">MONAI Label</span> 服务器，实现与 3D Slicer 等客户端的交互式 3D 医学图像分割。功能包括自定义样本选择策略、面向前端监控的 TCP 日志，以及基于提示的推理管线（多点 3D 提示、前/后向传播、交集与后处理）。</p>
+      </div>
+      <div class="grid cols-3">
+        <div class="card"><span class="tag">App</span> <strong>Entrypoint</strong><br><span class="small">`main.py` returns app instance</span></div>
+        <div class="card"><span class="tag">Inference</span> <strong>MedSAM2</strong><br><span class="small">Prompt-aware 3D pipeline</span></div>
+        <div class="card"><span class="tag">UI</span> <strong>TCP Logs</strong><br><span class="small">Live log streaming to front end</span></div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" data-title="Key Features / 主要特性">
+      <h2>Key Features / 主要特性</h2>
+      <div class="grid cols-2">
+        <div class="card en">
+          <ul>
+            <li>MONAI Label app entrypoint with custom strategy registration.</li>
+            <li>Datastore-driven study management (datastore_v2.json).</li>
+            <li>Selectable image strategy from the front end (not random-only).</li>
+            <li>MedSAM2-based inference with prompt-aware pipeline and postprocessing.</li>
+            <li>TCP log monitor to stream server-side logs to the client UI.</li>
+          </ul>
+        </div>
+        <div class="card zh">
+          <ul>
+            <li>提供 MONAI Label 应用入口与自定义策略注册。</li>
+            <li>基于数据仓库（datastore_v2.json）的研究/图像元数据管理。</li>
+            <li>前端可选择具体图像（非仅随机采样）。</li>
+            <li>基于 MedSAM2 的提示感知推理与后处理管线。</li>
+            <li>支持 TCP 日志监控并推送至前端界面。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Directory -->
+    <section id="structure" data-title="Directory Structure / 目录结构">
+      <h2>Directory Structure / 目录结构</h2>
+      <div class="card codewrap">
+        <button class="copy-btn" data-copy="#tree">Copy</button>
+<pre id="tree"><code>main.py                - MONAI Label app entrypoint, returns the app instance
+SAM2_MONAI.py          - App config: integrates SAM-Med3D inference & selection strategy
+medsam2_monai_utils/   - Utilities: IO, preprocessing, prompts, inference, postprocessing
+start_server.sh        - One-click script to start the MONAI Label server
+tcp_client.py          - TCP logger client to stream logs to front end
+</code></pre>
+      </div>
+    </section>
+
+    <!-- Dependencies -->
+    <section id="deps" data-title="Dependencies / 依赖">
+      <h2>Dependencies / 依赖</h2>
+      <div class="grid cols-2">
+        <div class="card en">
+          <ul>
+            <li>torch, torchvision</li>
+            <li>numpy, nibabel</li>
+            <li>monai-label</li>
+            <li>torchio <em>(may require downgrade &lt;0.3)</em></li>
+            <li>medim</li>
+          </ul>
+        </div>
+        <div class="card zh">
+          <ul>
+            <li>torch, torchvision</li>
+            <li>numpy, nibabel</li>
+            <li>monai-label</li>
+            <li>torchio <em>（可能需要降级到 &lt;0.3）</em></li>
+            <li>medim</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Configuration -->
+    <section id="config" data-title="Configuration / 配置">
+      <h2>Configuration / 配置</h2>
+      <div class="card">
+        <p class="en"><code>MONAI_LABEL_DATASTORE</code>: set to the studies root directory where images reside.</p>
+        <p class="zh"><code>MONAI_LABEL_DATASTORE</code>：设置为 studies 根目录（图像存放位置）。</p>
+      </div>
+    </section>
+
+    <!-- Quick Start -->
+    <section id="quickstart" data-title="Quick Start / 快速开始">
+      <h2>Quick Start / 快速开始</h2>
+      <div class="card codewrap">
+        <button class="copy-btn" data-copy="#qs">Copy</button>
+<pre id="qs"><code>1) Install dependencies (see above).
+2) Export MONAI_LABEL_DATASTORE to your studies folder.
+3) Run start_server.sh or your monailabel start command pointing to this app directory.
+</code></pre>
+      </div>
+    </section>
+
+    <!-- TCP Monitor -->
+    <section id="tcp" data-title="TCP Log Monitor / TCP 日志监控">
+      <h2>TCP Log Monitor / TCP 日志监控</h2>
+      <div class="card codewrap">
+        <button class="copy-btn" data-copy="#tcpcode">Copy</button>
+<pre id="tcpcode"><code class="language-python">from tcp_client import setup_logger
+import atexit
+
+# before starting the service
+logger, tcp_listener = setup_logger("10.6.10.118", 2020, "LOG_DIRECTORY_PATH")
+
+# ... start service ...
+
+atexit.register(tcp_listener.stop)
+</code></pre>
+      </div>
+    </section>
+
+    <!-- Architecture -->
+    <section id="arch" data-title="Architecture / 架构">
+      <h2>MONAI Label App Architecture / 应用架构</h2>
+
+      <h3>1) Datastore Initialization / 数据仓库初始化</h3>
+      <div class="card">
+        <p class="en"><code>self._datastore = self.init_datastore()</code> creates <code>datastore_v2.json</code> to track images/labels. Objects are maintained by datastore methods. You can optimize via caching or dynamic label updates.</p>
+        <p class="zh"><code>self._datastore = self.init_datastore()</code> 创建 <code>datastore_v2.json</code> 追踪图像与标注；对象由 datastore 方法维护。可进一步通过缓存或动态标签更新进行优化。</p>
+      </div>
+
+      <div class="card codewrap">
+        <button class="copy-btn" data-copy="#json">Copy</button>
+<pre id="json"><code class="language-json">{
+  "name": "new-dataset",
+  "description": "NEW Dataset",
+  "images_dir": ".",
+  "label_dir": "labels",
+  "objects": {
+    "IMAGE_FILE_NAME": {
+      "image": { "ext": ".nii.gz", "info": { "ts": 1754010873, "name": "FILE_NAME_WITH_EXT" } },
+      "labels": {}
+    }
+  }
+}
+</code></pre>
+      </div>
+
+      <h3>2) Selection Strategies / 样本选择策略</h3>
+      <div class="card">
+        <p class="en"><code>self._strategies = self.init_strategies()</code> registers a <code>select_strategy</code> per unlabeled image. The UI shows strategies via <code>Strategy.info()</code>.</p>
+        <p class="zh"><code>self._strategies = self.init_strategies()</code> 为每个未标注图像注册一个 <code>select_strategy</code>；前端通过 <code>Strategy.info()</code> 展示。</p>
+      </div>
+
+      <div class="grid cols-2">
+        <div class="card codewrap">
+          <div class="small">select_strategy</div>
+          <button class="copy-btn" data-copy="#strategy">Copy</button>
+<pre id="strategy"><code class="language-python">from monailabel.interfaces.task import Strategy
+
+class select_strategy(Strategy):
+    def __init__(self, description):
+        super().__init__(description)
+
+    def __call__(self, request, datastore):
+        return {"id": self.description}
+</code></pre>
+        </div>
+        <div class="card codewrap">
+          <div class="small">init_strategies()</div>
+          <button class="copy-btn" data-copy="#initstrat">Copy</button>
+<pre id="initstrat"><code class="language-python">import json, os
+
+def init_strategies(self):
+    with open(os.path.join(self.studies, "datastore_v2.json"), "r") as f:
+        data = json.load(f)
+
+    _strategies, i = {}, 0
+    for img, vals in data.get("objects", {}).items():
+        if vals.get("labels") == {}:
+            _strategies[f"img_{i:04d}"] = select_strategy(img)
+            i += 1
+    return _strategies
+</code></pre>
+        </div>
+      </div>
+
+      <div class="card codewrap">
+        <div class="small">next_sample()</div>
+        <button class="copy-btn" data-copy="#nextsample">Copy</button>
+<pre id="nextsample"><code class="language-python">def next_sample(self, request):
+    # 1) Parse "img_xxxx" from request["strategy"]
+    # 2) filename = self._strategies[img_name].info()["description"]
+    # 3) path = self._datastore.get_image_uri(filename)
+    # 4) return {"id": filename, "path": path}
+    # 5) optionally mark the entry as selected (e.g., add a checkmark)
+    return {"id": filename, "path": path}
+</code></pre>
+      </div>
+
+      <h3>3) Inference Registration / 推理注册</h3>
+      <div class="card codewrap">
+        <button class="copy-btn" data-copy="#inferreg">Copy</button>
+<pre id="inferreg"><code class="language-python">sam_infer = SAM2Infer(
+    path=self.app_dir,
+    network=None,
+    type="deepedit",
+    labels={"background": 0, "intersection": 1},
+    dimension=3,
+)
+self.models = {"SAM": sam_infer}
+return self.models
+</code></pre>
+      </div>
+      <div class="card">
+        <p class="en"><strong>Note:</strong> labels must include <code>background: 0</code> and <code>intersection: 1</code>.</p>
+        <p class="zh"><strong>注意：</strong> Label 定义必须包含 <code>background: 0</code> 与 <code>intersection: 1</code>。</p>
+      </div>
+    </section>
+
+    <!-- SAM2Infer -->
+    <section id="sam2infer" data-title="SAM2Infer / 核心推理任务">
+      <h2>SAM2Infer (Core Inference Task) / 核心推理任务</h2>
+      <div class="card">
+        <h3>Init / 初始化</h3>
+        <p class="en">Build model from a skeleton YAML and load weights.</p>
+        <p class="zh">从骨架 YAML 构建模型并加载权重。</p>
+      </div>
+      <div class="card">
+        <h3>__call__(request) Pipeline / 调用管线</h3>
+        <ol>
+          <li>Deep-copy request → data.</li>
+          <li>pre_transform(data): load prompts; minimal preprocessing for prompt parsing.</li>
+          <li>run_inferer(data): load image, read size (w,h,d), preprocess to <code>img_tensor</code>, build prompt configs, run inference, set <code>data['pred']</code>, <code>data['img_3d']</code>, <code>data['obj_ids']</code>.</li>
+          <li>post_transform(data): no-op (custom handling in writer).</li>
+          <li>writer(data): postprocess mask, save result, return <code>(output_path, result_json)</code>.</li>
+        </ol>
+        <p class="en">Invalid label names should return a blank label file path and a dummy JSON.</p>
+        <p class="zh">非法标签返回空白标签文件与占位 JSON。</p>
+      </div>
+    </section>
+
+    <!-- Prompting & Inference -->
+    <section id="prompting" data-title="Prompting & Inference / 提示与推理">
+      <h2>Prompting &amp; Inference Details / 提示与推理细节</h2>
+      <div class="card">
+        <h3>Shape & Meta Tracking / 尺寸与元信息追踪</h3>
+        <p class="en">Image/mask/prompts must be consistently resized in preprocessing, and original metadata preserved for correct inverse transforms in postprocessing.</p>
+        <p class="zh">图像/掩膜/提示需统一缩放，并保留原始元信息以便在后处理阶段正确进行逆变换。</p>
+      </div>
+      <div class="card">
+        <h3>Multi-Point 3D Prompts / 多点 3D 提示</h3>
+        <p class="en">Sort 3D points by <code>z</code>; for each adjacent unique <code>z</code> pair, build maximal bboxes on those slices. The key slice index is <code>(z_i + z_{i+1})/2</code>; broadcast results forward (+z) or backward (−z). Min/Max z are strict start/end boundaries to form connected 3D boxes.</p>
+        <p class="zh">按 <code>z</code> 排序；相邻唯一样本 <code>z</code> 成对构造最大包围框；关键切片为 <code>(z_i + z_{i+1})/2</code>，并沿 +z/−z 广播；最小/最大 <code>z</code> 为严格起止边界，形成连续 3D 包围盒。</p>
+      </div>
+      <div class="card">
+        <h3>Forward/Backward Intersection / 前向/后向交集</h3>
+        <p class="en">Run both forward and backward inference; take the intersection as final result. Maintain an extra label for ambiguous volumes.</p>
+        <p class="zh">同时执行前/后向推理，最终取其交集；对不确定体素保留一个额外标签。</p>
+      </div>
+      <div class="card">
+        <h3>Postprocessing / 后处理</h3>
+        <p class="en">Apply Largest Connected Component (LargGCC). Multiply by label values so background becomes 0 and remains hidden in 3D Slicer.</p>
+        <p class="zh">执行最大连通域（LargGCC）；按标签值加权使背景为 0，在 3D Slicer 中不显示。</p>
+      </div>
+    </section>
+
+    <!-- Front-end Integration -->
+    <section id="frontend" data-title="Front-end Integration / 前端集成">
+      <h2>Front-end Integration (3D Slicer) / 前端集成</h2>
+      <div class="card">
+        <p class="en">The strategy list in UI derives from <code>Strategy.info()</code>. Clicking “Next” triggers <code>next_sample()</code>, which returns the selected file’s <code>id</code> and <code>path</code>.</p>
+        <p class="zh">前端策略列表来自 <code>Strategy.info()</code>。点击“下一样本”会调用 <code>next_sample()</code>，返回所选文件的 <code>id</code> 与 <code>path</code>。</p>
+      </div>
+    </section>
+
+    <!-- Extensibility -->
+    <section id="ext" data-title="Extensibility / 可扩展性">
+      <h2>Extensibility &amp; Optimization / 可扩展性与优化</h2>
+      <div class="grid cols-2">
+        <div class="card en">
+          <ul>
+            <li>Active learning: score-based selection (Dice, entropy, focal).</li>
+            <li>Datastore caching; background prefetch for hot images.</li>
+            <li>Batching & streaming to optimize IO for large 3D volumes.</li>
+            <li>Structured logging; stream via TCP for live dashboards.</li>
+          </ul>
+        </div>
+        <div class="card zh">
+          <ul>
+            <li>主动学习：基于分数（Dice/熵/focal）的选择策略。</li>
+            <li>数据缓存：高频图像预加载；后台预取。</li>
+            <li>批处理与流式 IO：优化超大 3D 体数据读写。</li>
+            <li>结构化日志：通过 TCP 实时可视化。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section id="trouble" data-title="Troubleshooting / 故障排查">
+      <h2>Error Handling &amp; Troubleshooting / 错误处理与故障排查</h2>
+      <div class="card">
+        <ul>
+          <li>Invalid labels → blank mask + dummy JSON.</li>
+          <li>Strategy key mismatch → ensure <code>request['strategy']</code> matches registered keys.</li>
+          <li>TorchIO compatibility → verify version (&lt;0.3) if transforms fail.</li>
+          <li>Path issues → use <code>datastore.get_image_uri()</code> for absolute path resolution.</li>
+        </ul>
+        <ul>
+          <li>非法标签 → 返回空掩膜与占位 JSON。</li>
+          <li>策略键不匹配 → 确保 <code>request['strategy']</code> 与注册键一致。</li>
+          <li>TorchIO 兼容性 → 变换异常时核对版本（如需 &lt;0.3）。</li>
+          <li>路径问题 → 使用 <code>datastore.get_image_uri()</code> 解析绝对路径。</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Security -->
+    <section id="security" data-title="Security / 安全">
+      <h2>Security &amp; Privacy / 安全与隐私</h2>
+      <div class="card">
+        <p class="en">Handle PHI per institutional policy. Avoid logging sensitive metadata. If streaming logs via TCP, restrict visibility to authorized clients.</p>
+        <p class="zh">涉及 PHI 需遵循机构安全策略。避免在日志中写入敏感元数据。通过 TCP 推送日志时，应限制仅授权客户端可见。</p>
+      </div>
+    </section>
+
+    <!-- Limitations -->
+    <section id="limits" data-title="Limitations / 限制">
+      <h2>Known Limitations / 已知限制</h2>
+      <div class="card en">
+        <ul>
+          <li>Assumes MedSAM2 weights and compatible preprocessing are available.</li>
+          <li>Chinese in code blocks may render poorly (monospace). Prefer ASCII in code.</li>
+        </ul>
+      </div>
+      <div class="card zh">
+        <ul>
+          <li>假设已配置好 MedSAM2 权重与兼容的预处理流程。</li>
+          <li>代码块中的中文渲染受限（等宽字体），建议代码使用 ASCII。</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Roadmap -->
+    <section id="roadmap" data-title="Roadmap / 路线图">
+      <h2>Roadmap / 路线图</h2>
+      <div class="grid cols-2">
+        <div class="card en">
+          <ul>
+            <li>Start selection style sample strategy and UI hooks.</li>
+            <li>User fetching data from server and give points prompts.</li>
+            <li>User update prompts and waiting inferer runing on server.</li>
+            <li>Server load image and prompts, preprocessing as image tensor and prompt configs.</li>
+            <li>Server start inference task.</li>
+            <li>Server send postprocessed mask back to client.</li>
+          </ul>
+        </div>
+        <div class="card zh">
+          <ul>
+            <li>启动基于文件名选择的取样策略与前端交互。</li>
+            <li>用户从服务端获取图像以及进行3维点标注。</li>
+            <li>用户更新标注数据等待服务端推理。</li>
+            <li>服务端加载图片和标注，预处理图像以及提示参数列表。</li>
+            <li>服务端开始推理任务。</li>
+            <li>服务端将数据后处理后发往客户端。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- License -->
+    <section id="license" data-title="License / 许可">
+      <h2>License &amp; Acknowledgements / 许可与致谢</h2>
+      <div class="card">
+        <p class="en">Algorithm is developed based on <a href="https://medsam2.github.io/" target="_blank" rel="noopener">MedSAM2: : Segment Anything in 3D Medical Images</a> and 
+          <a href="https://github.com/project-monai/monai " target="_blank" rel="noopener">monai label </a>.</p>
+        <p class="zh">算法基于 <a href="https://medsam2.github.io/" target="_blank" rel="noopener">MedSAM2: : Segment Anything in 3D Medical Images and Videos
+          </a> 以及 <a href="https://github.com/project-monai/monai " target="_blank" rel="noopener">monai label </a>开源平台。</p>
+      </div>
+    </section>
+
+    <button id="toTop" class="btn" title="Back to top">↑ Top</button>
+  </main>
+</div>
+
+<script>
+(function(){
+  const app = document.getElementById('app');
+  const toc = document.getElementById('toc');
+  const search = document.getElementById('search');
+  const toTop = document.getElementById('toTop');
+  const toggleLangBtn = document.getElementById('toggleLang');
+  const toggleThemeBtn = document.getElementById('toggleTheme');
+
+  // Theme
+  const THEME_KEY='monai_sam_theme';
+  function applyTheme(mode){
+    if(mode==='light'){
+      document.documentElement.style.setProperty('--bg','#f7f9fc');
+      document.documentElement.style.setProperty('--bg-elev','#ffffff');
+      document.documentElement.style.setProperty('--panel','#f2f6fb');
+      document.documentElement.style.setProperty('--text','#0b1220');
+      document.documentElement.style.setProperty('--muted','#5b6b7d');
+      document.documentElement.style.setProperty('--border','#d7e0ee');
+      document.documentElement.style.setProperty('--code-bg','#f3f5f9');
+      document.documentElement.style.setProperty('--code-border','#e4eaf4');
+      document.documentElement.style.setProperty('--link','#0f6fff');
+      toggleThemeBtn.textContent='Light';
+    }else{
+      document.documentElement.style.cssText=''; // reset to default dark vars
+      toggleThemeBtn.textContent='Dark';
+    }
+    localStorage.setItem(THEME_KEY, mode);
+  }
+  applyTheme(localStorage.getItem(THEME_KEY)||'dark');
+  toggleThemeBtn.addEventListener('click', ()=>{
+    const next = (localStorage.getItem(THEME_KEY)||'dark')==='dark'?'light':'dark';
+    applyTheme(next);
+  });
+
+  // Language
+  const LANG_KEY='monai_sam_lang';
+  function setLang(mode){
+    app.classList.remove('lang-en','lang-zh','lang-both');
+    app.classList.add(mode);
+    toggleLangBtn.textContent = mode==='lang-zh' ? '中文' : (mode==='lang-en' ? 'EN' : 'EN/中文');
+    localStorage.setItem(LANG_KEY, mode);
+  }
+  setLang(localStorage.getItem(LANG_KEY)||'lang-zh');
+  toggleLangBtn.addEventListener('click', ()=>{
+    const curr = localStorage.getItem(LANG_KEY)||'lang-zh';
+    const next = curr==='lang-zh' ? 'lang-en' : (curr==='lang-en' ? 'lang-both' : 'lang-zh');
+    setLang(next);
+  });
+
+  // Build TOC
+  const sections = Array.from(document.querySelectorAll('main section'));
+  sections.forEach(sec=>{
+    const title = sec.getAttribute('data-title') || sec.querySelector('h2')?.textContent || sec.id;
+    const a = document.createElement('a');
+    a.href = '#'+sec.id;
+    a.textContent = title;
+    a.dataset.target = sec.id;
+    a.className='toc-l1';
+    toc.appendChild(a);
+    // h3 anchors
+    sec.querySelectorAll('h3').forEach(h3=>{
+      const id = sec.id + '_' + h3.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-');
+      h3.id = id;
+      const a2 = document.createElement('a');
+      a2.href = '#'+id; a2.textContent = '↳ ' + h3.textContent.trim();
+      a2.className='toc-l2';
+      toc.appendChild(a2);
+    });
+  });
+
+  // Scroll spy
+  const tocLinks = Array.from(toc.querySelectorAll('a'));
+  const observer = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        tocLinks.forEach(l=>l.classList.toggle('active', l.dataset.target===entry.target.id));
+      }
+    });
+  }, {rootMargin: '-40% 0px -50% 0px', threshold:[0,1]});
+  sections.forEach(s=>observer.observe(s));
+
+  // Smooth scrolling
+  toc.addEventListener('click', (e)=>{
+    if(e.target.tagName==='A'){
+      e.preventDefault();
+      const id = e.target.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if(el) el.scrollIntoView({behavior:'smooth'});
+      history.replaceState(null,'','#'+id);
+    }
+  });
+
+  // Back to top
+  window.addEventListener('scroll', ()=>{
+    toTop.style.display = window.scrollY > 300 ? 'block' : 'none';
+  });
+  toTop.addEventListener('click', ()=>window.scrollTo({top:0, behavior:'smooth'}));
+
+  // Copy buttons
+  document.querySelectorAll('.copy-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const sel = btn.getAttribute('data-copy');
+      const el = document.querySelector(sel);
+      if(!el) return;
+      const text = el.innerText;
+      navigator.clipboard.writeText(text).then(()=>{
+        const old = btn.textContent; btn.textContent='Copied'; setTimeout(()=>btn.textContent=old, 1200);
+      });
+    });
+  });
+
+  // Search: filter sections by query & highlight
+  function clearMarks(root){
+    root.querySelectorAll('mark').forEach(m=>{
+      const p = m.parentNode; p.replaceChild(document.createTextNode(m.textContent), m); p.normalize();
+    });
+  }
+  function highlight(el, q){
+    if(!q) return;
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+    const ranges = [];
+    while(walk.nextNode()){
+      const node = walk.currentNode;
+      const idx = node.data.toLowerCase().indexOf(q.toLowerCase());
+      if(idx>=0 && node.data.trim()){
+        ranges.push({node, idx, len: q.length});
+      }
+    }
+    ranges.reverse().forEach(({node, idx, len})=>{
+      const before = node.splitText(idx);
+      const after = before.splitText(len);
+      const mark = document.createElement('mark');
+      mark.textContent = before.data;
+      before.parentNode.replaceChild(mark, before);
+    });
+  }
+  let searchTimer=null;
+  search.addEventListener('input', ()=>{
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(()=>{
+      const q = search.value.trim();
+      sections.forEach(sec=>{
+        clearMarks(sec);
+        if(!q){ sec.classList.remove('hidden'); return; }
+        const hay = sec.innerText.toLowerCase();
+        if(hay.includes(q.toLowerCase())){
+          sec.classList.remove('hidden');
+          highlight(sec, q);
+        }else{
+          sec.classList.add('hidden');
+        }
+      });
+    }, 150);
+  });
+
+})();</script>
+</body>
+</html>
