@@ -1,0 +1,166 @@
+我将检索相关文件来分析MedSAM2的算法架构和流程。让我先查看关键目录和文件。
+
+Ran tool
+Ran tool
+Ran tool
+Ran tool
+现在让我读取关键文件来分析算法架构：
+
+Read file: sam2/modeling/sam2_base.py
+Read file: sam2/sam2_image_predictor.py
+Read file: training/trainer.py
+Read file: infer_medsam2_ultrasound.py
+Read file: sam2/modeling/sam/mask_decoder.py
+Read file: sam2/modeling/sam/prompt_encoder.py
+Read file: training/dataset/vos_dataset.py
+Read file: training/loss_fns.py
+现在让我查看更多关键文件来完善算法架构分析：
+
+Read file: sam2/modeling/backbones/hieradet.py
+Read file: sam2/modeling/memory_attention.py
+基于对代码的深入分析，我现在可以总结MedSAM2的算法架构和流程：
+
+## MedSAM2算法架构总结
+
+### 1. 核心组件架构
+
+#### **Image Encoder (Hiera Backbone)**
+- **输入**: `Image [B, 3, H, W]` → **输出**: `Multi-scale Features [B, C, H/16, W/16]`
+- **架构**: Hiera Transformer with Multi-Scale Attention
+- **关键参数**: 
+  - `embed_dim=96`, `num_heads=1` (初始)
+  - `stages=(2,3,16,3)`, `dim_mul=2.0`, `head_mul=2.0`
+  - 输出多尺度特征: `[256×256, 128×128, 64×64]`
+
+#### **Prompt Encoder**
+- **输入**: `Points/Boxes/Masks` → **输出**: `Sparse/Dense Embeddings`
+- **Point编码**: `point_coords [N, 2]` → `point_embeddings [N, embed_dim]`
+- **Box编码**: `box [N, 4]` → `box_embeddings [N, embed_dim]`  
+- **Mask编码**: `mask [N, H, W]` → `mask_embeddings [N, embed_dim]`
+- **位置编码**: `PositionEmbeddingRandom(embed_dim//2)`
+
+#### **Memory Attention**
+- **输入**: `Current Features + Memory Features` → **输出**: `Conditioned Features`
+- **Self-Attention**: `tgt [B, L, D]` → `tgt' [B, L, D]`
+- **Cross-Attention**: `(tgt, memory)` → `conditioned_tgt [B, L, D]`
+- **关键参数**: `d_model=256`, `num_layers=6`
+
+#### **Memory Encoder**
+- **输入**: `Predicted Masks` → **输出**: `Memory Embeddings`
+- **功能**: 将预测的mask编码为memory bank
+- **参数**: `num_maskmem=7` (1当前帧 + 6历史帧)
+
+#### **Mask Decoder (Two-Way Transformer)**
+- **输入**: `Image Features + Prompt Embeddings` → **输出**: `Mask Logits + IoU Scores`
+- **架构**: Two-Way Transformer with MLP Heads
+- **关键组件**:
+  - `mask_tokens`: `nn.Embedding(num_multimask_outputs+1, transformer_dim)`
+  - `iou_token`: `nn.Embedding(1, transformer_dim)`
+  - `output_hypernetworks_mlps`: `MLP(transformer_dim, transformer_dim, transformer_dim//8, 3)`
+  - `iou_prediction_head`: `MLP(transformer_dim, iou_head_hidden_dim, num_mask_tokens, iou_head_depth)`
+
+### 2. 训练流程 (Training Pipeline)
+
+#### **数据加载阶段**
+```
+VOSDataset → VOSSampler → VideoDatapoint → BatchedVideoDatapoint
+```
+
+**关键张量参数**:
+- `images [B, T, 3, H, W]`: 批次视频帧
+- `targets [B, T, num_objects, H, W]`: 目标mask
+- `point_coords [B, T, num_objects, num_points, 2]`: 点提示
+- `point_labels [B, T, num_objects, num_points]`: 点标签
+
+#### **前向传播阶段**
+```
+1. Image Encoder: images → backbone_features [B, T, C, H/16, W/16]
+2. Prompt Encoder: prompts → sparse_embeddings, dense_embeddings
+3. Memory Attention: (current_features, memory_features) → conditioned_features
+4. Mask Decoder: (conditioned_features, prompt_embeddings) → mask_logits, iou_scores
+```
+
+#### **损失计算阶段**
+```
+MultiStepMultiMasksAndIous Loss:
+- dice_loss(mask_logits, targets)
+- sigmoid_focal_loss(mask_logits, targets)  
+- iou_loss(mask_logits, targets, pred_ious)
+```
+
+**关键张量参数**:
+- `mask_logits [B, T, num_objects, H, W]`: 预测mask logits
+- `iou_scores [B, T, num_objects]`: 预测IoU分数
+- `targets [B, T, num_objects, H, W]`: 真实mask
+
+#### **熵优先采样策略**
+```
+object_presence [num_objects, num_frames] → p_i [num_objects] → h [num_objects]
+→ topk_idx [max_num_objects] → object_ids [max_num_objects]
+```
+
+### 3. 推理流程 (Inference Pipeline)
+
+#### **图像预处理阶段**
+```
+preprocess_slice(img2d) → rgb [H, W, 3] → set_image(rgb)
+```
+
+#### **模型推理阶段**
+```
+SAM2ImagePredictor.predict():
+1. _prep_prompts() → point_coords, point_labels, boxes, mask_input
+2. _predict() → mask_logits, iou_scores, low_res_logits
+3. _transforms.postprocess() → masks, scores, logits
+```
+
+#### **Prompt生成策略**
+```
+generate_prompt_from_gt(gt_slice):
+1. calculate_center_mass_and_variance() → centroid, variance
+2. generate_box_from_label() → bounding_box
+3. 根据prompt_mode返回:
+   - point_only: {'point_coords': [[x, y]], 'point_labels': [1]}
+   - box_only: {'box': [x1, y1, x2, y2]}
+   - mask+point: {'mask_input': mask, 'point_coords': [[x, y]], 'point_labels': [1]}
+```
+
+#### **3D超声处理流程**
+```
+for slice_idx in volume:
+    slice_2d = volume[slice_idx]  # [H, W]
+    rgb_slice = preprocess_slice(slice_2d)  # [512, 512, 3]
+    predictor.set_image(rgb_slice)
+    
+    if prompt_from_gt:
+        gt_slice = gt_volume[slice_idx]  # [H, W]
+        prompt = generate_prompt_from_gt(gt_slice)
+    else:
+        prompt = generate_simple_prompt()
+    
+    masks, scores, logits = predictor.predict(**prompt)
+    results[slice_idx] = masks
+```
+
+### 4. 关键张量维度总结
+
+#### **训练时关键张量**:
+- `backbone_features`: `[B, T, C, H/16, W/16]`
+- `sparse_embeddings`: `[B, num_prompts, embed_dim]`
+- `dense_embeddings`: `[B, embed_dim, H/4, W/4]`
+- `mask_logits`: `[B, T, num_objects, H, W]`
+- `iou_scores`: `[B, T, num_objects]`
+
+#### **推理时关键张量**:
+- `image_embeddings`: `[1, embed_dim, H/16, W/16]`
+- `point_coords`: `[1, num_points, 2]`
+- `point_labels`: `[1, num_points]`
+- `mask_logits`: `[1, num_masks, H, W]`
+- `iou_scores`: `[1, num_masks]`
+
+#### **Memory相关张量**:
+- `memory_features`: `[num_memory_frames, C, H/16, W/16]`
+- `object_pointers`: `[num_objects, embed_dim]`
+- `conditioned_features`: `[B, T, C, H/16, W/16]`
+
+这个架构实现了从单帧分割到视频跟踪的完整pipeline，通过memory机制实现时序一致性，通过entropy-based sampling优化训练效率。
